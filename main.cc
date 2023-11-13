@@ -103,8 +103,19 @@ int main() {
     getInputs(&n, &directed);
     int ** adjacencyList = new int*[n];
     getAdjacencyList(adjacencyList, n, directed);
-    DirectedGraph dag = DirectedGraph(adjacencyList, n, directed);
+    // TODO: FIX MEMORY LEAKS + WRITE DESTRUCTOR FOR DIRECTED GRAPH
+    DirectedGraph dag = DirectedGraph{adjacencyList, n, directed};
+    cout << dag;
 
+    int * roots = new int[n];
+    int * leaves = new int[n];
+    int numRoots;
+    int numLeaves;
+    dag.findRoots(roots, &numRoots);
+    dag.findLeaves(leaves, &numLeaves);
+
+    delete [] roots;
+    
     for (int i = 0; i < n; i++) {
         delete [] adjacencyList[i];
     }

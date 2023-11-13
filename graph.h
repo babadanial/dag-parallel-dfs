@@ -1,16 +1,18 @@
 #include <iostream>
 #include <ostream>
 #include <thread>
+#include <mutex>
 
 class Graph {
     protected:
         // number of nodes in graph
-        int n;
-        bool directed;
+        const int n;
+        const bool directed;
         int ** adjacencyList;
         int ** adjacencyMatrix;
 
         Graph(int ** adjacencyList, int n, bool directed);
+        virtual ~Graph();
 
     public:
         virtual void buildAdjacencyMatrixSequential() = 0;
@@ -21,9 +23,21 @@ class Graph {
 
 class DirectedGraph : public Graph {
     public:
-        DirectedGraph(int ** adjacencyList, int n, bool directed);
         void buildAdjacencyMatrixSequential();
         void buildAdjacencyMatrixParallel();
+        bool rootsFound;
+        int * roots;
+        int numRoots;
+        bool leavesFound;
+        int * leaves;
+        int numLeaves;
+
+        DirectedGraph(int ** adjacencyList, int n, bool directed);
+        virtual ~DirectedGraph();
+
+        // for the following 2 methods, first argument must be array of size n
+        void findRoots(int * roots, int * numRoots);
+        void findLeaves(int * leaves, int * numLeaves);
 };
 
 // class UndirectedGraph : public Graph {
