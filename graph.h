@@ -1,5 +1,6 @@
 #include <iostream>
 #include <ostream>
+#include <thread>
 
 class Graph {
     protected:
@@ -12,7 +13,8 @@ class Graph {
         Graph(int ** adjacencyList, int n, bool directed);
 
     public:
-        virtual void buildAdjacencyMatrix() = 0;
+        virtual void buildAdjacencyMatrixSequential() = 0;
+        virtual void buildAdjacencyMatrixParallel() = 0;
         friend std::ostream &operator<<(std::ostream &out, const Graph &g);
         int adjacencyMatrixElement(int row, int col);
 };
@@ -20,7 +22,8 @@ class Graph {
 class DirectedGraph : public Graph {
     public:
         DirectedGraph(int ** adjacencyList, int n, bool directed);
-        void buildAdjacencyMatrix();
+        void buildAdjacencyMatrixSequential();
+        void buildAdjacencyMatrixParallel();
 };
 
 // class UndirectedGraph : public Graph {

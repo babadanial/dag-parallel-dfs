@@ -8,8 +8,6 @@ using namespace std;
 
 // Get graph properties
 void getInputs(int * n, bool * directed) { 
-    char directedChar;
-
     cout << "Please input the number of nodes in the graph: ";
     cin >> *n;
     while (*n <= 1) { 
@@ -19,6 +17,7 @@ void getInputs(int * n, bool * directed) {
 
     *directed = true;
     // UNCOMMENT WHEN UNDIRECTED GRAPHS ARE SUPPORTED
+    // char directedChar;
     // cout << "Is the graph directed? [Y/N]: ";
     // cin >> directedChar;
     // while (!((directedChar == 'Y' || directedChar == 'N'))) {
