@@ -54,11 +54,14 @@ Graph::~Graph() {
 }
 
 DirectedGraph::~DirectedGraph() {
-    delete [] leaves;
-    delete [] roots;
     for (int i = 0; i < n; i++) {
         delete [] adjacencyMatrix[i];
+        delete [] parents[i];
     }
+    delete [] leaves;
+    delete [] roots;
+    delete [] numParents;
+    delete [] parents;
     delete [] adjacencyMatrix;
 }
 
@@ -132,14 +135,21 @@ void DirectedGraph::buildAdjacencyMatrixParallel() {
     delete [] threads;
 }
 
+int Graph::getSize() {
+    return this->n;
+}
+
 DirectedGraph::DirectedGraph(int ** adjacencyList, int n, bool directed) 
     : Graph{adjacencyList, n, directed},
       leavesFound{false},
       rootsFound{false},
+      parentsFound{false},
       numLeaves{-1},
       numRoots{-1},
+      numParents{nullptr},
       roots{nullptr},
-      leaves{nullptr}
+      leaves{nullptr},
+      parents{nullptr}
 {
     this->buildAdjacencyMatrixParallel();
 }
@@ -221,5 +231,50 @@ void DirectedGraph::findLeaves(int * leaves, int * numLeaves) {
     this->leavesFound = true;
     *numLeaves = this->numLeaves;
     memcpy(leaves, this->leaves, this->numLeaves * sizeof(int));
+    delete [] threads;
+}
+
+void DirectedGraph::findParents(int ** parents, int * numParents) {
+    if (parentsFound) {
+        memcpy(numParents, this->numParents, this->n * sizeof(int));
+        for (int node = 0; node < n; node++) {
+            numParents[node] = this->numParents[node];
+            memcpy(parents[node], this->parents[node], this->numParents[node] * sizeof(int));
+        }
+        return;
+    }
+
+    this->parents = new int*[n];
+    for (int i = 0; i < n; i++) {
+        this->parents[i] = new int[n];
+    }
+    this->numParents = new int[n];
+
+    auto findParents = [&](int && node) {
+        int i = 0;
+        for (int adjMatrixCol = 0; adjMatrixCol < n; adjMatrixCol++) {
+            if (this->adjacencyMatrix[node][adjMatrixCol] == 1) {
+                this->parents[node][i] = adjMatrixCol;
+                i++;
+            }
+        }
+        this->numParents[node] = i;
+    };
+
+    thread * threads = new thread[n];
+    for (int node = 0; node < this->n; node++) {
+        threads[node] = thread(findParents, node);
+    }
+    for (int i = 0; i < n; i++) {
+        threads[i].join();
+    }
+
+    // at this point, all threads have completed
+    this->parentsFound = true;
+    memcpy(numParents, this->numParents, this->n * sizeof(int));
+    for (int node = 0; node < n; node++) {
+        numParents[node] = this->numParents[node];
+        memcpy(parents[node], this->parents[node], this->numParents[node] * sizeof(int));
+    }
     delete [] threads;
 }

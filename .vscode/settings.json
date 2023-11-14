@@ -63,6 +63,7 @@
         "concepts": "cpp",
         "memory": "cpp",
         "type_traits": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "thread": "cpp"
     }
 }

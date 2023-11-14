@@ -15,6 +15,7 @@ class Graph {
         virtual ~Graph();
 
     public:
+        int getSize();
         virtual void buildAdjacencyMatrixSequential() = 0;
         virtual void buildAdjacencyMatrixParallel() = 0;
         friend std::ostream &operator<<(std::ostream &out, const Graph &g);
@@ -31,6 +32,9 @@ class DirectedGraph : public Graph {
         bool leavesFound;
         int * leaves;
         int numLeaves;
+        int ** parents;
+        int * numParents;
+        bool parentsFound;
 
         DirectedGraph(int ** adjacencyList, int n, bool directed);
         virtual ~DirectedGraph();
@@ -38,6 +42,7 @@ class DirectedGraph : public Graph {
         // for the following 2 methods, first argument must be array of size n
         void findRoots(int * roots, int * numRoots);
         void findLeaves(int * leaves, int * numLeaves);
+        void findParents(int ** parents, int * numParents);
 };
 
 // class UndirectedGraph : public Graph {

@@ -109,13 +109,26 @@ int main() {
 
     int * roots = new int[n];
     int * leaves = new int[n];
+    int ** parents = new int*[n];
+    for (int i = 0; i < n; i++) {
+        parents[i] = new int[n];
+    }
+    int * numParents = new int[n];
+
     int numRoots;
     int numLeaves;
     dag.findRoots(roots, &numRoots);
     dag.findLeaves(leaves, &numLeaves);
+    dag.findParents(parents, numParents);
 
     delete [] roots;
-    
+    delete [] numParents;
+    delete [] leaves;
+    for (int i = 0; i < n; i++) {
+        delete [] parents[i];
+    }
+    delete [] parents;
+
     for (int i = 0; i < n; i++) {
         delete [] adjacencyList[i];
     }
