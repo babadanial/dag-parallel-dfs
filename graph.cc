@@ -29,14 +29,16 @@ std::ostream &operator<<(std::ostream &out, const Graph &g) {
     return out;
 }
 
-Graph::Graph(int ** adjacencyList, int n, bool directed)
+Graph::Graph(int ** adjacencyList, int * adjacencyListLength, int n, bool directed)
     : n{n},
       directed{directed},
       adjacencyMatrix{nullptr}
 {
     // copy in adjacency lists from caller to Graph instance
     this->adjacencyList = new int*[n];
+    this->adjacencyListLength = new int[n];
     for (int i = 0; i < n; i++) {
+        this->adjacencyListLength[i] = adjacencyListLength[i];
         this->adjacencyList[i] = new int[n];
         memcpy(this->adjacencyList[i], adjacencyList[i], n * sizeof(int));
     }
@@ -139,8 +141,8 @@ int Graph::getSize() {
     return this->n;
 }
 
-DirectedGraph::DirectedGraph(int ** adjacencyList, int n, bool directed) 
-    : Graph{adjacencyList, n, directed},
+DirectedGraph::DirectedGraph(int ** adjacencyList, int * adjacencyListLength, int n, bool directed) 
+    : Graph{adjacencyList, adjacencyListLength, n, directed},
       leavesFound{false},
       rootsFound{false},
       parentsFound{false},
@@ -152,6 +154,13 @@ DirectedGraph::DirectedGraph(int ** adjacencyList, int n, bool directed)
       parents{nullptr}
 {
     this->buildAdjacencyMatrixParallel();
+}
+
+void DirectedGraph::getChildren(int ** children, int * numChildren) {
+    for (int node = 0; node < n; node++) {
+        memcpy(children[node], this->adjacencyList[node], n * sizeof(int));
+    }
+    memcpy(numChildren, this->adjacencyListLength, n * sizeof(int));
 }
 
 void DirectedGraph::findRoots(int * roots, int * numRoots) {
@@ -247,6 +256,9 @@ void DirectedGraph::findParents(int ** parents, int * numParents) {
     this->parents = new int*[n];
     for (int i = 0; i < n; i++) {
         this->parents[i] = new int[n];
+        for (int j = 0; j < n; j++) {
+            this->parents[i][j] = -1;
+        }
     }
     this->numParents = new int[n];
 

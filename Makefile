@@ -4,7 +4,7 @@ CXX = g++
 # 	- for example, "cat main.d" outputs "main.o: main.cc graph.h"
 #	- .d file automatically updates itself
 CXXFLAGS = -std=c++17 -g -O0 -Wall -MMD -Werror=vla -Wpedantic
-OBJECTS = graph.o main.o
+OBJECTS = graph.o main.o dfs.o
 DEPENDS = ${OBJECTS:.o=.d}
 EXEC = dfs
 

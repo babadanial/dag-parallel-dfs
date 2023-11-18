@@ -2,7 +2,12 @@
 #include <string>
 #include <sstream>
 #include <stdexcept>
+#include "dfs.h"
+
+#ifndef _GRAPH_IMPORT
+#define _GRAPH_IMPORT
 #include "graph.h"
+#endif
 
 using namespace std;
 
@@ -56,13 +61,13 @@ void checkUndirectedGraphInput(int ** adjacencyList, int n) {
 
 // Construct adjacency list for graph from inputs
 //  Adjacency list for node i stored at index i-1
-void getAdjacencyList(int ** adjacencyList, int & n, bool & directed) {
+void getAdjacencyList(int ** adjacencyList, int * adjacencyListLength, int & n, bool & directed) {
     string line;
     getline(cin, line);
     for (int node = 0; node < n; node++) {
-        int * neighbourList = new int[n];
+        int * adjacencyListRow = new int[n];
         for (int i = 0; i < n; i++) {
-            neighbourList[i] = -1;
+            adjacencyListRow[i] = -1;
         }
 
         if (directed) {
@@ -86,10 +91,12 @@ void getAdjacencyList(int ** adjacencyList, int & n, bool & directed) {
                 cout << "Fatal error: node " << neighbour << " is out of range for graph with " << n << " nodes!" << endl;
                 exit(1);
             }
-            neighbourList[index] = neighbour;
+            adjacencyListRow[index] = neighbour;
             index++;
         }
-        adjacencyList[node] = neighbourList;
+        adjacencyList[node] = adjacencyListRow;
+        adjacencyListLength[node] = index;
+
     }
 
     if (!directed) {
@@ -102,9 +109,10 @@ int main() {
     bool directed;
     getInputs(&n, &directed);
     int ** adjacencyList = new int*[n];
-    getAdjacencyList(adjacencyList, n, directed);
+    int * adjacencyListLength = new int[n];
+    getAdjacencyList(adjacencyList, adjacencyListLength, n, directed);
     // TODO: FIX MEMORY LEAKS + WRITE DESTRUCTOR FOR DIRECTED GRAPH
-    DirectedGraph dag = DirectedGraph{adjacencyList, n, directed};
+    DirectedGraph dag = DirectedGraph{adjacencyList, adjacencyListLength, n, directed};
     cout << dag;
 
     int * roots = new int[n];
@@ -121,6 +129,9 @@ int main() {
     dag.findLeaves(leaves, &numLeaves);
     dag.findParents(parents, numParents);
 
+    parallel_dfs dfs_obj = parallel_dfs(dag);
+    dfs_obj.directed_dfs();
+
     delete [] roots;
     delete [] numParents;
     delete [] leaves;
@@ -132,5 +143,6 @@ int main() {
     for (int i = 0; i < n; i++) {
         delete [] adjacencyList[i];
     }
+    delete [] adjacencyListLength;
     delete [] adjacencyList;
 }
