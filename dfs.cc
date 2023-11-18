@@ -21,8 +21,7 @@ parallel_dfs::parallel_dfs(DirectedGraph & g)
     roots = new int[n];
 
     parents = new int*[n];
-    parentVisited = new bool*[n];
-    parentVisitedIndex = new int[n];
+    parentsVisited = new int[n];
     numParents = new int[n];
 
     children = new int*[n];
@@ -34,8 +33,7 @@ parallel_dfs::parallel_dfs(DirectedGraph & g)
     edgeWeights = new int[n];
 
     for (int i = 0; i < n; i++) {
-        parentVisited[i] = new bool[n];
-        parentVisitedIndex[i] = 0;
+        parentsVisited[i] = 0;
         paths[i] = new int[n];
         children[i] = new int[n];
         parents[i] = new int[n];
@@ -46,7 +44,6 @@ parallel_dfs::parallel_dfs(DirectedGraph & g)
             //  first lexicographic smallest element cheap
             paths[i][j] = n + 1;
             parents[i][j] = -1;
-            parentVisited[i][j] = false;
         }
     }
 
@@ -56,19 +53,16 @@ parallel_dfs::parallel_dfs(DirectedGraph & g)
 }
 
 parallel_dfs::~parallel_dfs() {
-    
     for (int i = 0; i < n; i++) {
         delete [] paths[i];
         delete [] children[i];
         delete [] parents[i];
-        delete [] parentVisited[i];
     }
 
     delete [] edgeWeights;
     delete [] roots;
     delete [] parents;
-    delete [] parentVisited;
-    delete [] parentVisitedIndex;
+    delete [] parentsVisited;
     delete [] numParents;
     delete [] children;
     delete [] numChildren;
@@ -87,12 +81,11 @@ void parallel_dfs::computeDFSTree() {
         pathLengths[roots[i]]++;
     }
 
-    std::mutex * nodeMutexes = new std::mutex[n];
+    std::mutex * parentVisitedMutexes = new std::mutex[n];
 
     while (!Q.empty()) {
         std::queue<int> copyQ = Q;
         std::queue<int> P;
-        int numThreads = copyQ.size();
         std::deque<thread *> threadDeque;
 
         while (!copyQ.empty()) {
@@ -125,13 +118,12 @@ void parallel_dfs::computeDFSTree() {
                     // existingPath is shorter
                 }
 
-                nodeMutexes[child].lock();
-                parentVisited[child][parentVisitedIndex[child]] = true;
-                parentVisitedIndex[child]++;
-                if (parentVisitedIndex[child] == numParents[child]) {
+                parentVisitedMutexes[child].lock();
+                parentsVisited[child]++;
+                if (parentsVisited[child] == numParents[child]) {
                     P.push(child);
                 }
-                nodeMutexes[child].unlock();
+                parentVisitedMutexes[child].unlock();
 
                 delete [] existingPath;
                 delete [] newPath;
@@ -152,23 +144,114 @@ void parallel_dfs::computeDFSTree() {
         Q = P;
     }
 
-    delete [] nodeMutexes;
+    delete [] parentVisitedMutexes;
 }
 
 // Algorithm 2 from the paper
 void parallel_dfs::computeEdgeWeights() {
+    // prologue
     for (int i = 0; i < n; i++) {
         edgeWeights[i] = 0;
     }
+    queue<int> Q;
+
+    // find leaves, push them onto the queue Q
+    int * leaves = new int[n];
+    int numLeaves = 0;
+    graph.findLeaves(leaves, &numLeaves);
+    for (int i = 0; i < numLeaves; i++) {
+        Q.push(leaves[i]);
+        edgeWeights[leaves[i]] = 1;
+    }
+    delete [] leaves;
+
+    // used to track outgoing edges of each node we have visited
+    //  node is first dimension, children of each node are the second dimension
+    int * childrenVisited = new int[n];
+    for (int i = 0; i < n; i++) {
+        childrenVisited[i] = 0;
+    }
+    std::mutex * childVisitedMutexes = new std::mutex[n];
+
+    // main loop
+    while (!Q.empty()) {
+        std::queue<int> copyQ = Q;
+        std::queue<int> C;
+        std::deque<thread *> threadDeque;
+
+        while (!copyQ.empty()) {
+            int node = copyQ.front();
+            copyQ.pop();
+            int * nodeParents = parents[node];
+            int parentCount = numParents[node];
+            for (int i = 0; i < parentCount; i++) {
+                int parent = nodeParents[i];
+                
+                auto markParent = [&](int parent) {
+                    childVisitedMutexes[parent].lock();
+                    childrenVisited[parent]++;
+                    if (childrenVisited[parent] == numChildren[parent]) {
+                        C.push(parent);
+                    }
+                    childVisitedMutexes[parent].unlock();
+                };
+
+                thread * newThread = new thread(markParent, parent);
+                threadDeque.push_back(newThread);
+            }
+        }
+        // wait for all threads here
+        for (auto threadIterator = threadDeque.begin(); threadIterator != threadDeque.end(); threadIterator++) {
+            (*threadIterator)->join();
+        }
+        for (auto threadIterator = threadDeque.begin(); threadIterator != threadDeque.end(); threadIterator++) {
+            delete threadDeque.front();
+            threadDeque.pop_front();
+        }
+
+        queue<int> copyC = C;
+        while (!copyC.empty()) {
+            int node = copyC.front();
+            copyC.pop();
+            
+            auto computeWeight = [&](int node) {
+                int * nodeChildren = children[node];
+                int childCount = numChildren[node];
+                int weight = 1; // start at 1 to count the node itself
+                for (int i = 0; i < childCount; i++) {
+                    weight += edgeWeights[nodeChildren[i]];
+                }
+                edgeWeights[node] = weight;
+            };
+            
+            thread * newThread = new thread(computeWeight, node);
+            threadDeque.push_back(newThread);
+        }
+        // wait for all threads here
+        for (auto threadIterator = threadDeque.begin(); threadIterator != threadDeque.end(); threadIterator++) {
+            (*threadIterator)->join();
+        }
+        for (auto threadIterator = threadDeque.begin(); threadIterator != threadDeque.end(); threadIterator++) {
+            delete threadDeque.front();
+            threadDeque.pop_front();
+        }
+        Q = C;
+    }
+
+    // epilogue
+    delete [] childrenVisited;
 }
 
 // Algorithm 3 from the paper
 void parallel_dfs::computePreAndPostOrders() {
-    
+    // reset parentsVisited after it was used in computeDFSTree()
+    for (int i = 0; i < n; i++) {
+        parentsVisited[i] = 0;
+    }
 }
 
 void parallel_dfs::directed_dfs() {
-    // main body
     computeDFSTree();
+    computeEdgeWeights();
 
 }

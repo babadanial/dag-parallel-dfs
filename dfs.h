@@ -14,8 +14,7 @@ class parallel_dfs {
     int n;
     int * roots;
     int numRoots;
-    bool ** parentVisited;
-    int * parentVisitedIndex;
+    int * parentsVisited;
     int ** parents;
     int * numParents;
     int ** children;
