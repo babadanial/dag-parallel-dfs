@@ -52,6 +52,8 @@ void parallel_dfs::getRootOrder() {
             rootOrder[lenRootOrder] = root;
             lenRootOrder++;
         }
+
+        // once we obtain root ordering for DFS, set roots to be in this order (or keep lexicographic ordering if user enters nothing)
         if (lenRootOrder == numRoots || lenRootOrder == 0) {
             if (lenRootOrder == numRoots) {
                 for (int i = 0; i < numRoots; i++) {
@@ -76,7 +78,6 @@ parallel_dfs::parallel_dfs(DirectedGraph & g, std::ostream & out)
     roots = new int[n];
 
     parents = new int*[n];
-    parentsVisited = new int[n];
     numParents = new int[n];
 
     children = new int*[n];
@@ -84,14 +85,13 @@ parallel_dfs::parallel_dfs(DirectedGraph & g, std::ostream & out)
 
     paths = new int*[n];
     pathLengths = new int[n];
-    firstAncestor = new int[n];
+    rootAncestor = new int[n];
     edgeWeights = new int[n];
     preOrder = new int[n];
     postOrder = new int[n];
 
     for (int i = 0; i < n; i++) {
-        firstAncestor[i] = -1;
-        parentsVisited[i] = 0;
+        rootAncestor[i] = -1;
         paths[i] = new int[n];
         children[i] = new int[n];
         parents[i] = new int[n];
@@ -119,13 +119,12 @@ parallel_dfs::~parallel_dfs() {
         delete [] parents[i];
     }
 
-    delete [] firstAncestor;
+    delete [] rootAncestor;
     delete [] preOrder;
     delete [] postOrder;
     delete [] edgeWeights;
     delete [] roots;
     delete [] parents;
-    delete [] parentsVisited;
     delete [] numParents;
     delete [] children;
     delete [] numChildren;
@@ -134,17 +133,12 @@ parallel_dfs::~parallel_dfs() {
 }
 
 // Algorithm 4 from the paper
-void parallel_dfs::computeDFSTree() {
+void parallel_dfs::computeDFSTree(int root) {
     std::queue<int> Q;
     int n = graph.getSize();
-
-    for (int i = 0; i < numRoots; i++) {
-        Q.push(roots[i]);
-        paths[roots[i]][0] = roots[i];
-        pathLengths[roots[i]]++; 
-    }
-
-    std::mutex * parentVisitedMutexes = new std::mutex[n];
+    Q.push(root);
+    paths[root][0] = root;
+    pathLengths[root]++;
 
     while (!Q.empty()) {
         std::queue<int> copyQ = Q;
@@ -154,6 +148,14 @@ void parallel_dfs::computeDFSTree() {
         while (!copyQ.empty()) {
             int node = copyQ.front();
             copyQ.pop();
+
+            // before we do any work, we have to check if this node
+            //  has a root ancestor yet
+            if (rootAncestor[node] != -1) {
+                continue;
+            }
+            rootAncestor[node] = root;
+
             int * childrenSet = children[node];
             int childCount = numChildren[node];
 
@@ -179,13 +181,7 @@ void parallel_dfs::computeDFSTree() {
                     pathLengths[child] = newPathLength;
                 }
 
-                parentVisitedMutexes[child].lock();
-                parentsVisited[child]++;
-                if (parentsVisited[child] == numParents[child]) {
-                    P.push(child);
-                }
-                parentVisitedMutexes[child].unlock();
-
+                P.push(child);
                 delete [] existingPath;
                 delete [] newPath;
             };
@@ -205,7 +201,6 @@ void parallel_dfs::computeDFSTree() {
         Q = P;
     }
 
-    delete [] parentVisitedMutexes;
 }
 
 // Algorithm 2 from the paper
@@ -340,7 +335,9 @@ void parallel_dfs::computePreAndPostOrders() {
 
 void parallel_dfs::directed_dfs() {
     getRootOrder();
-    computeDFSTree();
+    for (int i = 0; i < numRoots; i++) {
+        computeDFSTree(roots[i]);
+    }
     computeEdgeWeights();
     computePreAndPostOrders();
 }

@@ -21,14 +21,13 @@ class parallel_dfs {
     // computed as part of initialization
     int * roots;
     int numRoots;
-    int * parentsVisited;
     int ** parents;
     int * numParents;
     int ** children;
     int * numChildren;
 
     // computed by dfs helper algorithms
-    int * firstAncestor;
+    int * rootAncestor;
     int ** paths;
     int * pathLengths;
     int * edgeWeights;
@@ -36,7 +35,7 @@ class parallel_dfs {
     int * postOrder;
 
     void getRootOrder();
-    void computeDFSTree();
+    void computeDFSTree(int root);
     void computeEdgeWeights();
     void computePreAndPostOrders();
     bool isRoot(int node);

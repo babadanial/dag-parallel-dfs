@@ -2,6 +2,7 @@
 #include <string>
 #include <sstream>
 #include <stdexcept>
+#include <thread>
 #include "dfs.h"
 
 #ifndef _GRAPH_IMPORT
