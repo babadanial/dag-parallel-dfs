@@ -3,7 +3,7 @@ CXX = g++
 #		technically makefiles of their own) whenever it compiles a .cc file
 # 	- for example, "cat main.d" outputs "main.o: main.cc graph.h"
 #	- .d file automatically updates itself
-CXXFLAGS = -std=c++17 -g -O0 -Wall -MMD -Werror=vla -Wpedantic
+CXXFLAGS = -std=c++17 -g -O0 -Wall -MMD -Werror=vla -Wpedantic -pthread
 OBJECTS = graph.o main.o dfs.o
 DEPENDS = ${OBJECTS:.o=.d}
 EXEC = dfs
