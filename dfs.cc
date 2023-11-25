@@ -14,10 +14,65 @@ bool whichPathShorter(int * pathA, int * pathB, int & lengthPathA, int & lengthP
     }
 }
 
-parallel_dfs::parallel_dfs(DirectedGraph & g) 
-    : graph{g}
+bool parallel_dfs::isRoot(int node) {
+    for (int i = 0; i < numRoots; i++) {
+        if (roots[i] == node) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void parallel_dfs::getRootOrder() {
+    int * rootOrder = new int[numRoots];
+
+    this->out << "The roots of this graph are: ";
+    for (int i = 0; i < numRoots; i++) {
+        this->out << roots[i] << " ";
+    }
+    this->out << endl;
+
+    while (true) {
+        this->out << "Please list the order in which you would like DFS to visit the roots\nEnter 0 (to default to lexicographic order) or " 
+            << numRoots << " root node numbers, separated by spaces): ";
+
+        int root = -1;
+        string line;
+        getline(cin, line);
+        istringstream ss(line);
+        int lenRootOrder = 0;
+        while (ss >> root) {
+            if (root == -1) {
+                break;
+            } else if (!isRoot(root)) {
+                this->out << "You entered the number " << root << " which does not correspond to a root of the graph. ";
+                this->out << "Please try again." << endl;
+                continue;
+            }
+            rootOrder[lenRootOrder] = root;
+            lenRootOrder++;
+        }
+        if (lenRootOrder == numRoots || lenRootOrder == 0) {
+            if (lenRootOrder == numRoots) {
+                for (int i = 0; i < numRoots; i++) {
+                    roots[i] = rootOrder[i];
+                }
+            }
+            break;
+        } else {
+            this->out << "You did not enter as many numbers as there are roots - either enter " <<
+                numRoots << "numbers, or do not enter any numbers at all (to default to lexicographic order)" << endl;
+        }
+    }
+
+    delete [] rootOrder;
+}
+
+parallel_dfs::parallel_dfs(DirectedGraph & g, std::ostream & out) 
+    : graph{g},
+      out{out},
+      n{g.getSize()}
 {
-    n = g.getSize();
     roots = new int[n];
 
     parents = new int*[n];
@@ -29,15 +84,20 @@ parallel_dfs::parallel_dfs(DirectedGraph & g)
 
     paths = new int*[n];
     pathLengths = new int[n];
-
+    firstAncestor = new int[n];
     edgeWeights = new int[n];
+    preOrder = new int[n];
+    postOrder = new int[n];
 
     for (int i = 0; i < n; i++) {
+        firstAncestor[i] = -1;
         parentsVisited[i] = 0;
         paths[i] = new int[n];
         children[i] = new int[n];
         parents[i] = new int[n];
         pathLengths[i] = 0;
+        preOrder[i] = 0;
+        postOrder[i] = 0;
 
         for (int j = 0; j < n; j++) {
             // initialize with value n+1 to make checking for
@@ -59,6 +119,9 @@ parallel_dfs::~parallel_dfs() {
         delete [] parents[i];
     }
 
+    delete [] firstAncestor;
+    delete [] preOrder;
+    delete [] postOrder;
     delete [] edgeWeights;
     delete [] roots;
     delete [] parents;
@@ -78,7 +141,7 @@ void parallel_dfs::computeDFSTree() {
     for (int i = 0; i < numRoots; i++) {
         Q.push(roots[i]);
         paths[roots[i]][0] = roots[i];
-        pathLengths[roots[i]]++;
+        pathLengths[roots[i]]++; 
     }
 
     std::mutex * parentVisitedMutexes = new std::mutex[n];
@@ -114,8 +177,6 @@ void parallel_dfs::computeDFSTree() {
                     // newPath is shorter
                     memcpy(paths[child], newPath, n * sizeof(int));
                     pathLengths[child] = newPathLength;
-                } else {
-                    // existingPath is shorter
                 }
 
                 parentVisitedMutexes[child].lock();
@@ -248,10 +309,38 @@ void parallel_dfs::computePreAndPostOrders() {
     for (int i = 0; i < n; i++) {
         parentsVisited[i] = 0;
     }
+
+    queue<int> Q;
+    for (int i = 0; i < numRoots; i++) {
+        Q.push(roots[i]);
+    }
+
+    while (!Q.empty()) {
+        std::queue<int> copyQ = Q;
+        std::queue<int> P;
+        std::deque<thread *> threadDeque;
+        
+        while (!copyQ.empty()) {
+            int node = copyQ.front();
+            copyQ.pop();
+            int * nodeChildren = children[node];
+            int childCount = numChildren[node];
+
+            auto setChild = [&] (int parent, int weightUpToChild, int child) {
+                preOrder[child] = preOrder[parent] + weightUpToChild;
+                postOrder[child] = postOrder[parent] + weightUpToChild;
+            };
+
+
+        }
+
+        Q = P;
+    }
 }
 
 void parallel_dfs::directed_dfs() {
+    getRootOrder();
     computeDFSTree();
     computeEdgeWeights();
-
+    computePreAndPostOrders();
 }
