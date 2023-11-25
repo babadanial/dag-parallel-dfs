@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <mutex>
 #include <thread>
+#include <cstring>
 #include <deque>
 
 #ifndef _GRAPH_IMPORT

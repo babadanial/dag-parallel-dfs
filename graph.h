@@ -2,6 +2,7 @@
 #include <ostream>
 #include <thread>
 #include <mutex>
+#include <cstring>
 
 class Graph {
     protected:
