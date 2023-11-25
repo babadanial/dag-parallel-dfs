@@ -129,7 +129,7 @@ int main() {
     dag.findLeaves(leaves, &numLeaves);
     dag.findParents(parents, numParents);
 
-    parallel_dfs dfs_obj = parallel_dfs(dag);
+    parallel_dfs dfs_obj = parallel_dfs(dag, cout);
     dfs_obj.directed_dfs();
 
     delete [] roots;
