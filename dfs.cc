@@ -253,10 +253,6 @@ void parallel_dfs::computeEdgeWeights() {
             int parentCount = numParents[node];
             for (int i = 0; i < parentCount; i++) {
                 int parent = nodeParents[i];
-                if (rootAncestor[parent] != rootAncestor[node]) {
-                    continue;
-                }
-
                 thread * newThread = new thread(markParent, parent, &C);
                 threadDeque.push_back(newThread);
             }
@@ -300,25 +296,6 @@ void parallel_dfs::computeEdgeWeights() {
             threadDeque.pop_front();
         }
         Q = C;
-        if (C.empty()) {
-            for (int i = 0; i < n; i++) {
-                // need to check that edgeWeight hasn't been computed for this node, but has
-                //  been computed for all children of this node
-                int * parentsChildren = children[i];
-                int numParentsChildren = numChildren[i];
-                bool allChildrenComputed = true;
-                if (edgeWeights[i] == 0) {
-                    for (int j = 0; j < numParentsChildren; j++) {
-                        if (!edgeWeightsComputed[parentsChildren[j]]) {
-                            allChildrenComputed = false;
-                        }
-                    }
-                    if (allChildrenComputed) {
-                        Q.push(i);
-                    }
-                }
-            }
-        }
     }
 
     delete [] edgeWeightsComputed;
