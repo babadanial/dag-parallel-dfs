@@ -205,9 +205,12 @@ void parallel_dfs::computeDFSTree(int root) {
 
 // Algorithm 2 from the paper
 void parallel_dfs::computeEdgeWeights() {
+    bool * edgeWeightsComputed = new bool[n];
     // prologue
     for (int i = 0; i < n; i++) {
-        edgeWeights[i] = 0;
+        edgeWeights[i] = 1;
+        // edgeWeights[i] = 0;
+        edgeWeightsComputed[i] = false;
     }
     queue<int> Q;
 
@@ -217,17 +220,25 @@ void parallel_dfs::computeEdgeWeights() {
     graph.findLeaves(leaves, &numLeaves);
     for (int i = 0; i < numLeaves; i++) {
         Q.push(leaves[i]);
-        edgeWeights[leaves[i]] = 1;
+        edgeWeightsComputed[leaves[i]] = true;
+        // edgeWeights[leaves[i]] = 1;
     }
     delete [] leaves;
 
-    // used to track outgoing edges of each node we have visited
-    //  node is first dimension, children of each node are the second dimension
-    int * childrenVisited = new int[n];
-    for (int i = 0; i < n; i++) {
-        childrenVisited[i] = 0;
-    }
-    std::mutex * childVisitedMutexes = new std::mutex[n];
+    auto markParent = [&](int parent, queue<int> * C) {
+        bool allRelevantChildrenSeen = true;
+        int * parentsChildren = children[parent];
+        int numParentsChildren = numChildren[parent];
+        for (int j = 0; j < numParentsChildren; j++) {
+            int parentsChild = parentsChildren[j];
+            if (rootAncestor[parentsChild] == rootAncestor[parent] && edgeWeightsComputed[parentsChild] == false) {
+                allRelevantChildrenSeen = false;
+            }
+        }
+        if (allRelevantChildrenSeen) {
+            C->push(parent);
+        }
+    };
 
     // main loop
     while (!Q.empty()) {
@@ -242,17 +253,11 @@ void parallel_dfs::computeEdgeWeights() {
             int parentCount = numParents[node];
             for (int i = 0; i < parentCount; i++) {
                 int parent = nodeParents[i];
-                
-                auto markParent = [&](int parent) {
-                    childVisitedMutexes[parent].lock();
-                    childrenVisited[parent]++;
-                    if (childrenVisited[parent] == numChildren[parent]) {
-                        C.push(parent);
-                    }
-                    childVisitedMutexes[parent].unlock();
-                };
+                if (rootAncestor[parent] != rootAncestor[node]) {
+                    continue;
+                }
 
-                thread * newThread = new thread(markParent, parent);
+                thread * newThread = new thread(markParent, parent, &C);
                 threadDeque.push_back(newThread);
             }
         }
@@ -275,9 +280,12 @@ void parallel_dfs::computeEdgeWeights() {
                 int childCount = numChildren[node];
                 int weight = 1; // start at 1 to count the node itself
                 for (int i = 0; i < childCount; i++) {
-                    weight += edgeWeights[nodeChildren[i]];
+                    if (rootAncestor[nodeChildren[i]] == rootAncestor[node]) {
+                        weight += edgeWeights[nodeChildren[i]];
+                    }
                 }
                 edgeWeights[node] = weight;
+                edgeWeightsComputed[node] = true;
             };
             
             thread * newThread = new thread(computeWeight, node);
@@ -292,19 +300,32 @@ void parallel_dfs::computeEdgeWeights() {
             threadDeque.pop_front();
         }
         Q = C;
+        if (C.empty()) {
+            for (int i = 0; i < n; i++) {
+                // need to check that edgeWeight hasn't been computed for this node, but has
+                //  been computed for all children of this node
+                int * parentsChildren = children[i];
+                int numParentsChildren = numChildren[i];
+                bool allChildrenComputed = true;
+                if (edgeWeights[i] == 0) {
+                    for (int j = 0; j < numParentsChildren; j++) {
+                        if (!edgeWeightsComputed[parentsChildren[j]]) {
+                            allChildrenComputed = false;
+                        }
+                    }
+                    if (allChildrenComputed) {
+                        Q.push(i);
+                    }
+                }
+            }
+        }
     }
 
-    // epilogue
-    delete [] childrenVisited;
+    delete [] edgeWeightsComputed;
 }
 
 // Algorithm 3 from the paper
 void parallel_dfs::computePreAndPostOrders() {
-    // reset parentsVisited after it was used in computeDFSTree()
-    for (int i = 0; i < n; i++) {
-        parentsVisited[i] = 0;
-    }
-
     queue<int> Q;
     for (int i = 0; i < numRoots; i++) {
         Q.push(roots[i]);
@@ -325,8 +346,6 @@ void parallel_dfs::computePreAndPostOrders() {
                 preOrder[child] = preOrder[parent] + weightUpToChild;
                 postOrder[child] = postOrder[parent] + weightUpToChild;
             };
-
-
         }
 
         Q = P;
