@@ -2,6 +2,17 @@
 
 using namespace std;
 
+class nodeIdentifier {
+    friend parallel_dfs;
+    int nodeNumber;
+    int rootIndex;
+    
+    nodeIdentifier(int node, int rootIndex) {
+        this->nodeNumber = node;
+        this->rootIndex = rootIndex;
+    }
+};
+
 // checks which path has first lexicographically smallest element at mismatch,
 //   returns 0 for first path (A), 1 for second path (B)
 bool whichPathShorter(int * pathA, int * pathB, int & lengthPathA, int & lengthPathB) {
@@ -303,26 +314,81 @@ void parallel_dfs::computeEdgeWeights() {
 
 // Algorithm 3 from the paper
 void parallel_dfs::computePreAndPostOrders() {
-    queue<int> Q;
+    queue<nodeIdentifier *> Q;
+    bool * visited = new bool[n];
+    int nextRootPreOrder = 0;
+    int largestRootSeen = -1;
+    for (int i = 0; i < n; i++) {
+        visited[i] = false;
+    }
+
     for (int i = 0; i < numRoots; i++) {
-        Q.push(roots[i]);
+        nodeIdentifier * root = new nodeIdentifier(roots[i], i);
+        Q.push(root);
     }
 
     while (!Q.empty()) {
-        std::queue<int> copyQ = Q;
-        std::queue<int> P;
+        std::queue<nodeIdentifier *> copyQ = Q;
+        std::queue<nodeIdentifier *> P;
+        // define a new deque for each iteration on Q, because we need to wait for
+        //  all computations on nodes in this iteration on Q to finish before we can compute
+        //  pre- and post-orders for their children (which will be in the next iteration
+        //  on Q)
         std::deque<thread *> threadDeque;
         
         while (!copyQ.empty()) {
-            int node = copyQ.front();
+            nodeIdentifier * nodeStruct = copyQ.front();
+            int node = nodeStruct->nodeNumber;
+            int rootIndex = nodeStruct->rootIndex;
             copyQ.pop();
             int * nodeChildren = children[node];
             int childCount = numChildren[node];
 
-            auto setChild = [&] (int parent, int weightUpToChild, int child) {
+            auto handleChild = [&] (int parent, int weightUpToChild, int child) {
                 preOrder[child] = preOrder[parent] + weightUpToChild;
                 postOrder[child] = postOrder[parent] + weightUpToChild;
+                bool allNeededParentsVisited = true;
+                int * childsParents = parents[child];
+                int parentCount = numParents[child];
+                for (int i = 0; i < parentCount; i++) {
+                    int parent = childsParents[i];
+                    if (rootAncestor[parent] == rootAncestor[child] && visited[parent] == false) {
+                        allNeededParentsVisited = false;
+                    }
+                }
+                if (allNeededParentsVisited) {
+                    P.push(new nodeIdentifier(child, -1));
+                }
             };
+
+            if (rootIndex != -1 && !visited[node]) {
+                preOrder[node] = nextRootPreOrder;
+                postOrder[node] = nextRootPreOrder;
+            }
+            visited[node] = true;
+
+            int cumulativeChildWeight = 0;
+            for (int i = 0; i < childCount; i++) {
+                int child = nodeChildren[i];
+                if (rootAncestor[child] == rootAncestor[node]) {
+                    thread * newThread = new thread(handleChild, node, cumulativeChildWeight, child);
+                    cumulativeChildWeight += edgeWeights[child];
+                }
+            }
+
+            preOrder[node] = preOrder[node] + pathLengths[node] - 1;
+            postOrder[node] = postOrder[node] + edgeWeights[node] - 1;
+            if (rootIndex != -1) {
+                nextRootPreOrder = postOrder[node] + 1; 
+            }
+
+            delete nodeStruct;
+        }
+
+        // need to wait for all computations on children to finish before we can
+        //  do any pre- or post
+        for (auto it = threadDeque.begin(); it != threadDeque.end(); it++) {
+            (*it)->join();
         }
 
         Q = P;
