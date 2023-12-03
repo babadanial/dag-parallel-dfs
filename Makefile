@@ -1,5 +1,5 @@
 CXX = g++
-# -	MMD causes g++ to create .d files (make dependencies, which are
+# -	-MMD argument causes g++ to create .d files (make dependencies, which are
 #		technically makefiles of their own) whenever it compiles a .cc file
 # 	- for example, "cat main.d" outputs "main.o: main.cc graph.h"
 #	- .d file automatically updates itself
