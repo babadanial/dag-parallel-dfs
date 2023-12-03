@@ -1,4 +1,4 @@
-This project is an implementation of Algorithm 5 in [this paper](https://research.nvidia.com/sites/default/files/publications/nvr-2017-001.pdf).
+This project is an implementation of Algorithm 5 in [this paper](https://research.nvidia.com/sites/default/files/publications/nvr-2017-001.pdf) from NVIDIA.
 
 However, some modifications have been made to the 3 subroutines to allow depth-first search to be performed
 on directed acyclic graphs with multiple roots: you can specify an order $(r_1, r_2, ..., r_n)$ to visit the roots, 
