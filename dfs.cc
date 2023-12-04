@@ -372,6 +372,7 @@ void parallel_dfs::computePreAndPostOrders() {
                 int child = nodeChildren[i];
                 if (rootAncestor[child] == rootAncestor[node]) {
                     thread * newThread = new thread(handleChild, node, cumulativeChildWeight, child);
+                    threadDeque.push_back(newThread);
                     cumulativeChildWeight += edgeWeights[child];
                 }
             }
