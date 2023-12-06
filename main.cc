@@ -114,7 +114,6 @@ int main() {
     getAdjacencyList(adjacencyList, adjacencyListLength, n, directed);
     // TODO: FIX MEMORY LEAKS + WRITE DESTRUCTOR FOR DIRECTED GRAPH
     DirectedGraph dag = DirectedGraph{adjacencyList, adjacencyListLength, n, directed};
-    cout << dag;
 
     int * roots = new int[n];
     int * leaves = new int[n];
@@ -132,6 +131,7 @@ int main() {
 
     parallel_dfs dfs_obj = parallel_dfs(dag, cout);
     dfs_obj.directed_dfs();
+    cout << dfs_obj;
 
     delete [] roots;
     delete [] numParents;

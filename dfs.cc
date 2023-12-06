@@ -330,7 +330,6 @@ void parallel_dfs::computePreAndPostOrders() {
         //  all computations on nodes in this iteration on Q to finish before we can compute
         //  pre- and post-orders for their children (which will be in the next iteration
         //  on Q)
-        std::deque<thread *> threadDeque;
         
         while (!copyQ.empty()) {
             nodeIdentifier * nodeStruct = copyQ.front();
@@ -341,6 +340,10 @@ void parallel_dfs::computePreAndPostOrders() {
             int childCount = numChildren[node];
 
             auto handleChild = [&] (int childsParent, int weightUpToChild, int child) {
+                // printLock.lock();
+                // cout << "preOrder[" << child << "]: " << preOrder[childsParent] << " + " << weightUpToChild << " = " << preOrder[childsParent] + weightUpToChild << endl;
+                // cout << "postOrder[" << child << "]: " << postOrder[childsParent] << " + " << weightUpToChild << " = " << postOrder[childsParent] + weightUpToChild << endl;
+                // printLock.unlock();
                 preOrder[child] = preOrder[childsParent] + weightUpToChild;
                 postOrder[child] = postOrder[childsParent] + weightUpToChild;
                 bool allNeededParentsVisited = true;
@@ -364,6 +367,7 @@ void parallel_dfs::computePreAndPostOrders() {
             visited[node] = true;
 
             int cumulativeChildWeight = 0;
+            std::deque<thread *> threadDeque;            
             for (int i = 0; i < childCount; i++) {
                 int child = nodeChildren[i];
                 if (parent[child] == node) {
@@ -372,24 +376,46 @@ void parallel_dfs::computePreAndPostOrders() {
                     cumulativeChildWeight += edgeWeights[child];
                 }
             }
+            
+            // need to wait for all computations on children to finish before we can
+            //  do any pre- or post
+            for (auto it = threadDeque.begin(); it != threadDeque.end(); it++) {
+                (*it)->join();
+            }
 
+            // printLock.lock();
+            // cout << "preOrder[" << node << "]: " << preOrder[node] << " + " << pathLengths[node] - 1 << " = " << preOrder[node] + pathLengths[node] - 1 << endl;
+            // cout << "postOrder[" << node << "]: " << postOrder[node] << " + " << pathLengths[node] - 1 << " = " << postOrder[node] + pathLengths[node] - 1 << endl;
+            // printLock.unlock();
             preOrder[node] = preOrder[node] + pathLengths[node] - 1;
             postOrder[node] = postOrder[node] + edgeWeights[node] - 1;
             if (rootIndex != -1) {
                 nextRootPreOrder = postOrder[node] + 1; 
             }
 
-            delete nodeStruct;
-        }
+            for (auto it = threadDeque.begin(); it != threadDeque.end(); it++) {
+                delete *it;
+            }
 
-        // need to wait for all computations on children to finish before we can
-        //  do any pre- or post
-        for (auto it = threadDeque.begin(); it != threadDeque.end(); it++) {
-            (*it)->join();
+            delete nodeStruct;
         }
 
         Q = P;
     }
+}
+
+std::ostream &operator<<(std::ostream &out, const parallel_dfs &dfs_obj) {
+    out << "Pre-order:" << endl;
+    for (int i = 0; i < dfs_obj.n; i++) {
+        out << " " << dfs_obj.preOrder[i];
+    }
+    out << endl;
+    out << "Post-order:" << endl;
+    for (int i = 0; i < dfs_obj.n; i++) {
+        out << " " << dfs_obj.postOrder[i];
+    }
+    out << endl;
+    return out;
 }
 
 void parallel_dfs::directed_dfs() {
