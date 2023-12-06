@@ -96,13 +96,13 @@ parallel_dfs::parallel_dfs(DirectedGraph & g, std::ostream & out)
 
     paths = new int*[n];
     pathLengths = new int[n];
-    rootAncestor = new int[n];
+    parent = new int[n];
     edgeWeights = new int[n];
     preOrder = new int[n];
     postOrder = new int[n];
 
     for (int i = 0; i < n; i++) {
-        rootAncestor[i] = -1;
+        parent[i] = -1;
         paths[i] = new int[n];
         children[i] = new int[n];
         parents[i] = new int[n];
@@ -130,7 +130,7 @@ parallel_dfs::~parallel_dfs() {
         delete [] parents[i];
     }
 
-    delete [] rootAncestor;
+    delete [] parent;
     delete [] preOrder;
     delete [] postOrder;
     delete [] edgeWeights;
@@ -147,6 +147,7 @@ parallel_dfs::~parallel_dfs() {
 void parallel_dfs::computeDFSTree(int root) {
     std::queue<int> Q;
     int n = graph.getSize();
+    parent[root] = root;
     Q.push(root);
     paths[root][0] = root;
     pathLengths[root]++;
@@ -159,13 +160,6 @@ void parallel_dfs::computeDFSTree(int root) {
         while (!copyQ.empty()) {
             int node = copyQ.front();
             copyQ.pop();
-
-            // before we do any work, we have to check if this node
-            //  has a root ancestor yet
-            if (rootAncestor[node] != -1) {
-                continue;
-            }
-            rootAncestor[node] = root;
 
             int * childrenSet = children[node];
             int childCount = numChildren[node];
@@ -198,6 +192,10 @@ void parallel_dfs::computeDFSTree(int root) {
             };
 
             for (int i = 0; i < childCount; i++) {
+                if (parent[childrenSet[i]] != -1) {
+                    continue;
+                }
+                parent[childrenSet[i]] = node;
                 thread * newThread = new thread(doIteration, node, childrenSet[i]);
                 threadDeque.push_back(newThread);
             }
@@ -220,7 +218,6 @@ void parallel_dfs::computeEdgeWeights() {
     // prologue
     for (int i = 0; i < n; i++) {
         edgeWeights[i] = 1;
-        // edgeWeights[i] = 0;
         edgeWeightsComputed[i] = false;
     }
     queue<int> Q;
@@ -232,22 +229,21 @@ void parallel_dfs::computeEdgeWeights() {
     for (int i = 0; i < numLeaves; i++) {
         Q.push(leaves[i]);
         edgeWeightsComputed[leaves[i]] = true;
-        // edgeWeights[leaves[i]] = 1;
     }
     delete [] leaves;
 
-    auto markParent = [&](int parent, queue<int> * C) {
+    auto markParent = [&](int nodesParent, queue<int> * C) {
         bool allRelevantChildrenSeen = true;
-        int * parentsChildren = children[parent];
-        int numParentsChildren = numChildren[parent];
+        int * parentsChildren = children[nodesParent];
+        int numParentsChildren = numChildren[nodesParent];
         for (int j = 0; j < numParentsChildren; j++) {
             int parentsChild = parentsChildren[j];
-            if (rootAncestor[parentsChild] == rootAncestor[parent] && edgeWeightsComputed[parentsChild] == false) {
+            if (parent[parentsChild] == nodesParent && edgeWeightsComputed[parentsChild] == false) {
                 allRelevantChildrenSeen = false;
             }
         }
         if (allRelevantChildrenSeen) {
-            C->push(parent);
+            C->push(nodesParent);
         }
     };
 
@@ -263,8 +259,8 @@ void parallel_dfs::computeEdgeWeights() {
             int * nodeParents = parents[node];
             int parentCount = numParents[node];
             for (int i = 0; i < parentCount; i++) {
-                int parent = nodeParents[i];
-                thread * newThread = new thread(markParent, parent, &C);
+                int nodesParent = nodeParents[i];
+                thread * newThread = new thread(markParent, nodesParent, &C);
                 threadDeque.push_back(newThread);
             }
         }
@@ -287,7 +283,7 @@ void parallel_dfs::computeEdgeWeights() {
                 int childCount = numChildren[node];
                 int weight = 1; // start at 1 to count the node itself
                 for (int i = 0; i < childCount; i++) {
-                    if (rootAncestor[nodeChildren[i]] == rootAncestor[node]) {
+                    if (parent[nodeChildren[i]] == node) {
                         weight += edgeWeights[nodeChildren[i]];
                     }
                 }
@@ -344,15 +340,15 @@ void parallel_dfs::computePreAndPostOrders() {
             int * nodeChildren = children[node];
             int childCount = numChildren[node];
 
-            auto handleChild = [&] (int parent, int weightUpToChild, int child) {
-                preOrder[child] = preOrder[parent] + weightUpToChild;
-                postOrder[child] = postOrder[parent] + weightUpToChild;
+            auto handleChild = [&] (int childsParent, int weightUpToChild, int child) {
+                preOrder[child] = preOrder[childsParent] + weightUpToChild;
+                postOrder[child] = postOrder[childsParent] + weightUpToChild;
                 bool allNeededParentsVisited = true;
                 int * childsParents = parents[child];
                 int parentCount = numParents[child];
                 for (int i = 0; i < parentCount; i++) {
-                    int parent = childsParents[i];
-                    if (rootAncestor[parent] == rootAncestor[child] && visited[parent] == false) {
+                    int thisParent = childsParents[i];
+                    if (thisParent == parent[child] && visited[thisParent] == false) {
                         allNeededParentsVisited = false;
                     }
                 }
@@ -370,7 +366,7 @@ void parallel_dfs::computePreAndPostOrders() {
             int cumulativeChildWeight = 0;
             for (int i = 0; i < childCount; i++) {
                 int child = nodeChildren[i];
-                if (rootAncestor[child] == rootAncestor[node]) {
+                if (parent[child] == node) {
                     thread * newThread = new thread(handleChild, node, cumulativeChildWeight, child);
                     threadDeque.push_back(newThread);
                     cumulativeChildWeight += edgeWeights[child];

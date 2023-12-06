@@ -27,7 +27,10 @@ class parallel_dfs {
     int * numChildren;
 
     // computed by dfs helper algorithms
+    //  stores root that is the original ancestor of each node
     int * rootAncestor;
+    //  stores the immediate parent of each node, depending on what order we perform DFS on the roots
+    int * parent;
     int ** paths;
     int * pathLengths;
     int * edgeWeights;
