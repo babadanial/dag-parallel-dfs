@@ -5,11 +5,10 @@ on directed acyclic graphs with multiple roots: you can specify an order $(r_1, 
 in which case pre- and post-orders will be calculated as though DFS was first run on $r_1$, then on $r_2$ (excluding
 nodes that were visited after running DFS from $r_1$), etc.
 
-- Graphs are inputted using adjacency lists (see test cases for format).
 - The program outputs pre- and post-orders of all nodes based on performing DFS on the roots in the ordering given.
 - Makefile is provided for convenience.
 
-If you want to pass a file as input, the format is as follows:
+If you want to pass a file as input, the format is as follows (see test cases in testInputs/ for examples):
 ```
 <number n of nodes>
 <out-neighbours of node 0, separated by spaces>
