@@ -12,10 +12,10 @@ nodes that were visited after running DFS from $r_1$), etc.
 If you want to pass a file as input, the format is as follows:
 ```
 <number n of nodes>
-<out-neighbours of node 0>
+<out-neighbours of node 0, separated by spaces>
 ...
-<out-neighbours of node n-1>
-[<order in which roots of graph should be visited by DFS>]
+<out-neighbours of node n-1, separated by spaces>
+[<order in which roots of graph should be visited by DFS, separated by spaces>]
 ```
 The last line (where root order for DFS is provided is optional); however, if an order is specified, it must include all roots
 of the graph.
