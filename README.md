@@ -8,3 +8,14 @@ nodes that were visited after running DFS from $r_1$), etc.
 - Graphs are inputted using adjacency lists (see test cases for format).
 - The program outputs pre- and post-orders of all nodes based on performing DFS on the roots in the ordering given.
 - Makefile is provided for convenience.
+
+If you want to pass a file as input, the format is as follows:
+```
+<number n of nodes>
+<out-neighbours of node 0>
+...
+<out-neighbours of node n-1>
+[<order in which roots of graph should be visited>]
+```
+The last line where root order for DFS is specified is optional, but if an order is specified, it must include all roots
+of the graph.
