@@ -17,6 +17,7 @@ class parallel_dfs {
     std::ostream & out;
     DirectedGraph & graph;
     int n;
+    std::mutex printLock;
 
     // computed as part of initialization
     int * roots;
@@ -47,4 +48,5 @@ class parallel_dfs {
         ~parallel_dfs();
         parallel_dfs(DirectedGraph & g, std::ostream & out);
         void directed_dfs();
+        friend std::ostream &operator<<(std::ostream &out, const parallel_dfs & dfs_obj);
 };
